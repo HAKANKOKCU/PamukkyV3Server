@@ -16,6 +16,7 @@ var groupusers = {};
 var useronlinetimeouts = {};
 var useronlinestatus = {};
 var updaterinfo = {};
+var notifications = {};
 const chatpagesize = 20;
 
 Number.prototype.pad = function(size) {
@@ -730,6 +731,47 @@ const requestListener = function (req, res) {
 											
 										}
 									})
+									if (isgroup) {
+										let usersa = Object.keys(groupusers[bd["chatid"]])
+										usersa.forEach(function(i) {
+											if (i != uidfromemail[email]) {
+												let emaila = Object.keys(uidfromemail).find(key => uidfromemail[key] === i)
+												//console.log(emaila)
+												let token = tokenfromuser[emaila]
+												//console.log(token)
+												if (notifications[token] == undefined) {
+													notifications[token] = {};
+												}
+												notifications[token][new Date().getTime().toString()] = {
+													chatid: bd["chatid"],
+													user: users[uidfromemail[email]],
+													content: bd["content"]
+												}
+											}
+										})
+									}else {
+										let i;
+										if (spl[0] == uidfromemail[email]) {
+											i = spl[1]
+										}else {
+											i = spl[0];
+										}
+										if (i != uidfromemail[email]) {
+											let emaila = Object.keys(uidfromemail).find(key => uidfromemail[key] === i)
+											//console.log(emaila)
+											let token = tokenfromuser[emaila]
+											//console.log(token)
+											if (notifications[token] == undefined) {
+												notifications[token] = {};
+											}
+											notifications[token][new Date().getTime().toString()] = {
+												chatid: bd["chatid"],
+												user: users[uidfromemail[email]],
+												content: bd["content"]
+											}
+										}
+									}
+									//console.log(notifications)
 								}
 							}else {
 								res.statusCode = 411;
@@ -1421,6 +1463,42 @@ const requestListener = function (req, res) {
 				}
 			}catch {}
 		});
+	}else if (req.url == "/getnotifications") {
+		let data = []
+		req.on('data', (chunk) => {
+			data.push(chunk)
+		})
+		req.on('end', () => {
+			try {
+				var bd = JSON.parse(data);
+				var token = bd["token"];
+				if (token) {
+					var email = userfromtoken[token];
+					var uid = uidfromemail[email];
+					if (users[uid]) {
+						if (notifications[token] == undefined) {
+							notifications[token] = {};
+						}
+						res.statusCode = 200;
+						res.end(JSON.stringify(notifications[token]));
+						let keys = Object.keys(notifications[token]);
+						setTimeout(function() {
+							try {
+								keys.forEach(function(i) {
+									delete notifications[token][i]
+								})
+							}catch{}
+						},3000)
+					}else {
+						res.statusCode = 401;
+						res.end(JSON.stringify({status: "error", description: "Invalid token", "id":"INTOKEN"}));
+					}
+				}else {
+					res.statusCode = 411;
+					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
+				}
+			}catch {}
+		});
 	}else if (req.url == "/getonline") {
 		let data = []
 		req.on('data', (chunk) => {
@@ -1634,6 +1712,9 @@ const requestListener = function (req, res) {
 					}
 					// Try to use the original filename
 					let id = makeid(20);
+					if (req.headers['content-type'] == undefined) {
+						req.headers['content-type'] = "UNKNOWN/file"
+					}
 					let filename = id + "." + req.headers['content-type'].split('/')[1];
 					while (fs.existsSync(`./uploads/${filename}`)) {
 						let id = makeid(20);
