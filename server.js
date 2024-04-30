@@ -36,6 +36,11 @@ function nonundefined(input,ifund) {
 	}
 	return input;
 }
+try {
+fs.mkdirSync("data");
+fs.mkdirSync("data/chats");
+}catch{}
+
 
 function makeid(length) {
     let result = '';
@@ -65,7 +70,7 @@ function savedata(cb) {
 	var savejson = {
 		users: users,
 		userauths: userauths,
-		chats: chats,
+		//chats: chats,
 		userfromtoken: userfromtoken,
 		tokenfromuser: tokenfromuser,
 		uidfromemail: uidfromemail,
@@ -74,8 +79,16 @@ function savedata(cb) {
 		groupusers:groupusers,
 		useronlinestatus:useronlinestatus
 	}
+	console.log("Saving chats to files...");
+	console.log(chats)
+	Object.keys(chats).forEach(function(i) {
+		console.log(i);
+		try {fs.mkdirSync("data/chats/" + i);}catch{}
+		fs.writeFileSync("data/chats/" + i + "/data.json",JSON.stringify(chats[i]));
+	})
 	fs.writeFile("./data.json",JSON.stringify(savejson),cb);
 }
+
 
 function loaddata() {
 	try {
@@ -94,7 +107,6 @@ function loaddata() {
 }
 
 loaddata();
-
 const requestListener = function (req, res) {
 	res.setHeader('Access-Control-Allow-Origin', '*');
 
@@ -408,11 +420,11 @@ const requestListener = function (req, res) {
 				if (token) {
 					var email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var chatlist = Object.assign([], chatslist[token]);
-						if (chatlist == undefined) {
-							chatlist = [];
+						let chatlista = Object.assign([], chatslist[token]);
+						if (chatlista == undefined) {
+							chatlista = [];
 						}
-						chatlist.forEach(i => {
+						chatlista.forEach(i => {
 							try {
 								if (i.type == "user") {
 									i.info = {
@@ -426,12 +438,20 @@ const requestListener = function (req, res) {
 									};
 								}
 								var cht = chats[i.chatid];
+								if (cht == undefined || cht == null) {
+									try {
+										cht = JSON.parse(fs.readFileSync("data/chats/" + i.chatid + "/data.json"));
+										chats[i.chatid] = cht;
+									}catch {
+										cht = {};
+									}
+								}
 								var kys = Object.keys(cht);
 								i.lastmessage = cht[kys[kys.length - 1]]
 							}catch (e) {console.log(e)}
 						})
 						res.statusCode = 200;
-						res.end(JSON.stringify(chatlist));
+						res.end(JSON.stringify(chatlista));
 					}else {
 						res.statusCode = 401;
 						res.end(JSON.stringify({status: "error", description: "Invalid token", "id":"INTOKEN"}));
@@ -588,7 +608,12 @@ const requestListener = function (req, res) {
 								}
 							}catch {}
 							if (chatitself == undefined || chatitself == null) {
-								chatitself = {};
+								try {
+									chatitself = JSON.parse(fs.readFileSync("data/chats/" + bd["chatid"] + "/data.json"));
+									chats[bd["chatid"]] = chatitself;
+								}catch {
+									chatitself = {};
+								}
 							}
 							var kys = Object.keys(chatitself);
 							var start = kys.length + (chatpage - 1 * chatpagesize);
