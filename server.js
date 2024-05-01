@@ -711,7 +711,12 @@ const requestListener = function (req, res) {
 							res.statusCode = 200;
 							var chatitself = chats[bd["chatid"]];
 							if (chatitself == undefined || chatitself == null) {
-								chatitself = {};
+								try {
+									cht = JSON.parse(fs.readFileSync("data/chats/" + bd["chatid"] + "/data.json"));
+									chats[bd["chatid"]] = cht;
+								}catch {
+									cht = {};
+								}
 							}
 							if (bd["content"]) {
 								if (bd["content"].toString().trim().length == 0 && ((bd["files"] != null) ? bd["files"] : undefined) == undefined) {
@@ -881,7 +886,7 @@ const requestListener = function (req, res) {
 						}
 						var isgroup = !bd["chatid"].includes("-");
 						var spl = bd["chatid"].split("-");
-						console.log(groupusers[bd["chatid"]][uidfromemail[email]]);
+						//console.log(groupusers[bd["chatid"]][uidfromemail[email]]);
 						if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : groupusers[bd["chatid"]][uidfromemail[email]]) {
 							var chatitself = chats[bd["chatid"]];
 							if (chatitself == undefined || chatitself == null) {
@@ -892,7 +897,12 @@ const requestListener = function (req, res) {
 								var savedmessagesid = uidfromemail[email] + "-" + uidfromemail[email];
 								var chatsaveds = chats[savedmessagesid];
 								if (chatsaveds == undefined || chatsaveds == null) {
-									chatsaveds = {};
+									try {
+										chatsaveds = JSON.parse(fs.readFileSync("data/chats/" + savedmessagesid + "/data.json"));
+										chats[savedmessagesid] = chatsaveds;
+									}catch {
+										chatsaveds = {};
+									}
 								}
 								var date = new Date();
 								let diff = -date.getTimezoneOffset();
@@ -942,7 +952,7 @@ const requestListener = function (req, res) {
 						}
 						var isgroup = !bd["chatid"].includes("-");
 						var spl = bd["chatid"].split("-");
-						console.log(groupusers[bd["chatid"]][uidfromemail[email]]);
+						//console.log(groupusers[bd["chatid"]][uidfromemail[email]]);
 						if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : groupusers[bd["chatid"]][uidfromemail[email]]) {
 							var chatitself = chats[bd["chatid"]];
 							if (chatitself == undefined || chatitself == null) {
