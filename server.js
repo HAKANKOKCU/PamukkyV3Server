@@ -17,7 +17,7 @@ var useronlinetimeouts = {};
 var useronlinestatus = {};
 var updaterinfo = {};
 var notifications = {};
-const chatpagesize = 20;
+const chatpagesize = 64;
 
 Number.prototype.pad = function(size) {
     var s = String(this);
@@ -974,10 +974,51 @@ const requestListener = function (req, res) {
 										let diff = -date.getTimezoneOffset();
 										ctst[new Date().getTime().toString()] = {
 											content: chatitself[msgid]["content"].toString(),
+											files: chatitself[msgid]["files"],
 											forwardedfrom: chatitself[msgid]["sender"],
 											sender: uidfromemail[email],
 											time: (date.getMonth() + 1).pad() + " " + date.getDate().pad() + " " + date.getFullYear() + ", " + date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0') + " " + ((diff<=0?"":"+") + Math.floor(diff / 60).pad().toString() + ":" + Math.floor(diff % 60).pad().toString())
 										};
+										if (isgroup) {
+											let usersa = Object.keys(groupusers[tochatid])
+											usersa.forEach(function(i) {
+												if (i != uidfromemail[email]) {
+													let emaila = Object.keys(uidfromemail).find(key => uidfromemail[key] === i)
+													//console.log(emaila)
+													let token = tokenfromuser[emaila]
+													//console.log(token)
+													if (notifications[token] == undefined) {
+														notifications[token] = {};
+													}
+													notifications[token][new Date().getTime().toString()] = {
+														chatid: tochatid,
+														user: users[uidfromemail[email]],
+														content: chatitself[msgid]["content"].toString()
+													}
+												}
+											})
+										}else {
+											let i;
+											if (spl[0] == uidfromemail[email]) {
+												i = spl[1]
+											}else {
+												i = spl[0];
+											}
+											if (i != uidfromemail[email]) {
+												let emaila = Object.keys(uidfromemail).find(key => uidfromemail[key] === i)
+												//console.log(emaila)
+												let token = tokenfromuser[emaila]
+												//console.log(token)
+												if (notifications[token] == undefined) {
+													notifications[token] = {};
+												}
+												notifications[token][new Date().getTime().toString()] = {
+													chatid: tochatid,
+													user: users[uidfromemail[email]],
+													content: chatitself[msgid]["content"].toString()
+												}
+											}
+										}
 										chats[tochatid] = ctst;
 										res.end(JSON.stringify({status: "done"}));
 									}else {
