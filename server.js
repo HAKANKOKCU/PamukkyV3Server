@@ -635,6 +635,11 @@ const requestListener = function (req, res) {
 										a.replymsgsender = users[chatitself[a.replymsgid].sender].name
 									}catch (e) {console.error(e)}
 								}
+								if (a.forwardedfrom) {
+									try {
+										a.forwardedname = users[a.forwardedfrom].name;
+									}catch (e) {console.error(e)}
+								}
 								items[i] = a;
 							})
 							res.end(JSON.stringify(items));
@@ -712,10 +717,10 @@ const requestListener = function (req, res) {
 							var chatitself = chats[bd["chatid"]];
 							if (chatitself == undefined || chatitself == null) {
 								try {
-									cht = JSON.parse(fs.readFileSync("data/chats/" + bd["chatid"] + "/data.json"));
-									chats[bd["chatid"]] = cht;
+									chatitself = JSON.parse(fs.readFileSync("data/chats/" + bd["chatid"] + "/data.json"));
+									chats[bd["chatid"]] = chatitself;
 								}catch {
-									cht = {};
+									chatitself = {};
 								}
 							}
 							if (bd["content"]) {
@@ -956,7 +961,12 @@ const requestListener = function (req, res) {
 						if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : groupusers[bd["chatid"]][uidfromemail[email]]) {
 							var chatitself = chats[bd["chatid"]];
 							if (chatitself == undefined || chatitself == null) {
-								chatitself = {};
+								try {
+									chatitself = JSON.parse(fs.readFileSync("data/chats/" + bd["chatid"] + "/data.json"));
+									chats[bd["chatid"]] = chatitself;
+								}catch {
+									chatitself = {};
+								}
 							}
 							res.statusCode = 200;
 							if (chatitself[msgid]) {
@@ -968,7 +978,12 @@ const requestListener = function (req, res) {
 									if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : groupusers[tochatid][uidfromemail[email]]) {
 										var ctst = chats[tochatid];
 										if (ctst == undefined || ctst == null) {
-											ctst = {};
+											try {
+												ctst = JSON.parse(fs.readFileSync("data/chats/" + bd["chatid"] + "/data.json"));
+												chats[bd["chatid"]] = ctst;
+											}catch {
+												ctst = {};
+											}
 										}
 										var date = new Date();
 										let diff = -date.getTimezoneOffset();
@@ -1895,7 +1910,14 @@ const requestListener = function (req, res) {
 							if (updaterinfo[token][tuid]) {
 								res.statusCode = 200;
 								res.end(JSON.stringify(updaterinfo[token][tuid]));
-								updaterinfo[token][tuid] =  {};
+								let keys = Object.keys(updaterinfo[token][tuid]);
+								setTimeout(function() {
+									try {
+										keys.forEach(function(i) {
+											delete updaterinfo[token][tuid][i]
+										})
+									}catch{}
+								},3000)
 							}else {
 								res.statusCode = 401;
 								res.end(JSON.stringify({status: "error", description: "Invalid ID", "id":"INUID"}));
