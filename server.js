@@ -120,8 +120,13 @@ const requestListener = function (req, res) {
     // Set to true if you need the website to include cookies in the requests sent
     // to the API (e.g. in case you use sessions)
     res.setHeader('Access-Control-Allow-Credentials', true);
-
-	if (req.url == "/login") {
+	if (req.url == "/") {
+		res.writeHead(302, {
+		  'Location': 'https://pamukky.netlify.app/v3/?server=' + "http" + '://' + req.headers.host + "/" //req.headers.protocol
+		  //add other headers here...
+		});
+		res.end();
+	}else if (req.url == "/login") {
 		let data = []
 		req.on('data', (chunk) => {
 			data.push(chunk)
@@ -914,6 +919,7 @@ const requestListener = function (req, res) {
 								chatsaveds[new Date().getTime().toString()] = {
 									content: chatitself[msgid]["content"].toString(),
 									sender: chatitself[msgid]["sender"],
+									files: chatitself[msgid]["files"],
 									time: (date.getMonth() + 1).pad() + " " + date.getDate().pad() + " " + date.getFullYear() + ", " + date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0') + " " + ((diff<=0?"":"+") + Math.floor(diff / 60).pad().toString() + ":" + Math.floor(diff % 60).pad().toString())
 								};
 								chats[savedmessagesid] = chatsaveds;
@@ -1907,21 +1913,23 @@ const requestListener = function (req, res) {
 					if (users[uid]) {
 						var tuid = bd["id"];
 						if (tuid) {
-							if (updaterinfo[token][tuid]) {
-								res.statusCode = 200;
-								res.end(JSON.stringify(updaterinfo[token][tuid]));
-								let keys = Object.keys(updaterinfo[token][tuid]);
-								setTimeout(function() {
-									try {
-										keys.forEach(function(i) {
-											delete updaterinfo[token][tuid][i]
-										})
-									}catch{}
-								},3000)
-							}else {
-								res.statusCode = 401;
-								res.end(JSON.stringify({status: "error", description: "Invalid ID", "id":"INUID"}));
-								updaterinfo[token][tuid] = {};
+							if (updaterinfo[token]) {
+								if (updaterinfo[token][tuid]) {
+									res.statusCode = 200;
+									res.end(JSON.stringify(updaterinfo[token][tuid]));
+									let keys = Object.keys(updaterinfo[token][tuid]);
+									setTimeout(function() {
+										try {
+											keys.forEach(function(i) {
+												delete updaterinfo[token][tuid][i]
+											})
+										}catch{}
+									},3000)
+								}else {
+									res.statusCode = 401;
+									res.end(JSON.stringify({status: "error", description: "Invalid ID", "id":"INUID"}));
+									updaterinfo[token][tuid] = {};
+								}
 							}
 						}else {
 							res.statusCode = 411;
