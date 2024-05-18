@@ -56,7 +56,7 @@ function makeid(length) {
 
 function maketoken() {
     let result = '';
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;`¨~£$½%{[]}()=?\\*-|_\'"';
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;~$%{[]}()=?\\*-|_\'"';
     const charactersLength = characters.length;
     let counter = 0;
     while (counter < 50) {
@@ -103,7 +103,10 @@ function loaddata() {
 		groups = nonundefined(parsedjson["groups"], {});
 		groupusers = nonundefined(parsedjson["groupusers"], {});
 		useronlinestatus = nonundefined(parsedjson["useronlinestatus"], {});
-	}catch {}
+	}catch (e) {
+		console.log("A critical error occured!");
+		throw e;
+	}
 }
 
 loaddata();
@@ -562,6 +565,7 @@ const requestListener = function (req, res) {
 										}
 									}
 								}
+								chats[uidfromemail[email] + "-" + uidfromemail[semail]] = {};
 								chatslist[token] = chatlist;
 								chatslist[tokenfromuser[semail]] = chatlistsec;
 								res.statusCode = 200;
@@ -1167,6 +1171,7 @@ const requestListener = function (req, res) {
 								}
 							}
 						}
+						chats[groupid] = {};
 						var groupusersa = {}
 						groupusersa[uidfromemail[email]] = {
 							user: uidfromemail[email],
@@ -1793,7 +1798,7 @@ const requestListener = function (req, res) {
 		});
 	}else if (req.url == "/upload" && req.method.toLowerCase() == "post") {
 		try {
-			var token = req.headers["token"];
+			var token =  req.headers["token"];
 			console.log(token);
 			if (token) {
 				var email = userfromtoken[token];
@@ -1803,6 +1808,7 @@ const requestListener = function (req, res) {
 
 					let contentLength = parseInt(req.headers['content-length'])
 					if (isNaN(contentLength) || contentLength <= 0 ) {
+						console.log("NO FILE", req.headers)
 					  res.statusCode = 411;
 					  res.end(JSON.stringify({status: "error", description: "No File"}))
 					  return
@@ -1846,6 +1852,7 @@ const requestListener = function (req, res) {
 					res.end(JSON.stringify({status: "error", description: "Invalid token", "id":"INTOKEN"}));
 				}
 			}else {
+				console.log("NO TOKEN", req.headers)
 				res.statusCode = 411;
 				res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 			}
