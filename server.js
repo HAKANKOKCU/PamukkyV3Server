@@ -1,26 +1,29 @@
-var http = require("http");
+let http = require("http");
 const fs = require('fs');
 const process = require('process');
-var url = require('url');
+let url = require('url');
+let path = require('path');
 const port = 8080;
 
-var users = {};
-var userauths = {};
-var chats = {};
-var userfromtoken = {};
-var tokenfromuser = {};
-var uidfromemail = {};
-var chatslist = {};
-var groups = {};
-var groupusers = {};
-var useronlinetimeouts = {};
-var useronlinestatus = {};
-var updaterinfo = {};
-var notifications = {};
+let users = {};
+let userauths = {};
+let chats = {};
+let userfromtoken = {};
+let tokenfromuser = {};
+let uidfromemail = {};
+let chatslist = {};
+let groups = {};
+let groupusers = {};
+let useronlinetimeouts = {};
+let useronlinestatus = {};
+let updaterinfo = {};
+let notifications = {};
 const chatpagesize = 64;
+const args = process.argv;
+console.log(args);
 
 Number.prototype.pad = function(size) {
-    var s = String(this);
+    let s = String(this);
     while (s.length < (size || 2)) {s = "0" + s;}
     return s;
 }
@@ -38,8 +41,18 @@ function nonundefined(input,ifund) {
 }
 try {
 fs.mkdirSync("data");
+fs.mkdirSync("uploads");
 fs.mkdirSync("data/chats");
 }catch{}
+
+
+const isFile = fileName => {
+  return fs.lstatSync(fileName).isFile();
+};
+
+const isFolder = fileName => {
+  return !fs.lstatSync(fileName).isFile();
+};
 
 
 function makeid(length) {
@@ -67,7 +80,7 @@ function maketoken() {
 }
 
 function savedata(cb) {
-	var savejson = {
+	let savejson = {
 		users: users,
 		userauths: userauths,
 		//chats: chats,
@@ -92,7 +105,7 @@ function savedata(cb) {
 
 function loaddata() {
 	try {
-		var parsedjson = JSON.parse(fs.readFileSync("./data.json"));
+		let parsedjson = JSON.parse(fs.readFileSync("./data.json"));
 		users = nonundefined(parsedjson["users"], {});
 		userauths = nonundefined(parsedjson["userauths"], {});
 		chats = nonundefined(parsedjson["chats"], {});
@@ -103,6 +116,101 @@ function loaddata() {
 		groups = nonundefined(parsedjson["groups"], {});
 		groupusers = nonundefined(parsedjson["groupusers"], {});
 		useronlinestatus = nonundefined(parsedjson["useronlinestatus"], {});
+		if (args.includes('--CLEANUP_UNUSEDFILES')) {
+			let folderPath = "uploads";
+			let files = fs.readdirSync(folderPath)
+			  .map(fileName => {
+				return path.join(folderPath, fileName).replace("\\","/");
+			  })
+			  .filter(isFile);
+			console.log(files);
+			
+			{
+				//users
+				console.log("users:")
+				let ukeys = Object.keys(users);
+				ukeys.forEach((i) => {
+					let u = users[i];
+					if (u.picture) {
+						if (u.picture.startsWith("%SERVER%getmedia/?file=")) {
+							let up = u.picture.replace("%SERVER%getmedia/?file=","");
+							let io = files.indexOf("uploads/" + up);
+							if (io > -1) {
+								console.log(up + " is used");
+								files.splice(io, 1);
+							} 
+						}
+					}
+				});
+			}
+			
+			{
+				//groups
+				console.log("groups:")
+				let ukeys = Object.keys(groups);
+				ukeys.forEach((i) => {
+					let u = groups[i];
+					if (u.picture) {
+						if (u.picture.startsWith("%SERVER%getmedia/?file=")) {
+							let up = u.picture.replace("%SERVER%getmedia/?file=","");
+							let io = files.indexOf("uploads/" + up);
+							if (io > -1) {
+								console.log(up + " is used");
+								files.splice(io, 1);
+							} 
+						}
+					}
+				});
+			}
+			
+			
+			{
+				//groups
+				
+				console.log("chats:")
+				let folderPath = "data/chats";
+				let chats = fs.readdirSync(folderPath)
+				  .map(fileName => {
+					return path.join(folderPath, fileName);
+				  })
+				  .filter(isFolder);
+				console.log(chats);
+				chats.forEach((i) => {
+					let datajson = path.join(i, "data.json")
+					console.log(datajson);
+					let chat = JSON.parse(fs.readFileSync(datajson));
+					let ckeys = Object.keys(chat);
+					ckeys.forEach((i) => {
+						let msg = chat[i];
+						if (msg.files) {
+							msg.files.forEach((i) => {
+								if (i.startsWith("%SERVER%getmedia/?file=")) {
+									let up = i.replace("%SERVER%getmedia/?file=","");
+									let io = files.indexOf("uploads/" + up);
+									if (io > -1) {
+										console.log(up + " is used");
+										files.splice(io, 1);
+									} 
+								}
+							})
+						}
+					})
+				})
+			}
+			
+			
+			console.log(files);
+			if (args.includes('--WIPEUNUSED')) {
+				console.log("Starting to delete files...")
+				files.forEach((i) => {
+					fs.unlinkSync(i);
+					console.log("Deleted " + i)
+				})
+			}else {
+				console.log("Summary of unused files created, if you meant to delete them, add '--WIPEUNUSED' argument.")
+			}
+			console.log("Done!")
+		}
 	}catch (e) {
 		console.log("A critical error occured!");
 		throw e;
@@ -136,7 +244,7 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
+				let bd = JSON.parse(data);
 				if (bd["password"] == undefined) {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "Password is undefined.", "id":"NOPASS"}))
@@ -152,7 +260,7 @@ const requestListener = function (req, res) {
 					res.end(JSON.stringify({status: "error", description: "No user found.", "id":"NOUSER"}))
 					return;
 				}
-				var auth = userauths[bd["email"]];
+				let auth = userauths[bd["email"]];
 				if (auth.password == bd["password"]) {
 					res.statusCode = 200;
 					res.end(JSON.stringify({
@@ -174,7 +282,7 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
+				let bd = JSON.parse(data);
 				if (bd["password"] == undefined) {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "Password is undefined.", "id":"NOPASS"}))
@@ -201,7 +309,7 @@ const requestListener = function (req, res) {
 					res.end(JSON.stringify({status: "error", description: "Password too short. Should be minimum 6 in length", "id":"PASSTSHORT"}))
 					return;
 				}
-				var id = makeid(28);
+				let id = makeid(28);
 				if (users[id]) {
 					res.statusCode = 500;
 					res.end(JSON.stringify({status: "error", description: "UID was already taken. Please try again."}))
@@ -216,7 +324,7 @@ const requestListener = function (req, res) {
 				userauths[bd["email"]] = {
 					password: bd["password"]
 				}
-				var token = maketoken();
+				let token = maketoken();
 				tokenfromuser[bd["email"]] = token;
 				userfromtoken[token] = bd["email"];
 				uidfromemail[bd["email"]] = id;
@@ -235,10 +343,10 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			//try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
 						if (bd["password"] == undefined) {
 							res.statusCode = 411;
@@ -263,7 +371,7 @@ const requestListener = function (req, res) {
 							}
 							
 							delete userfromtoken[token];
-							var oldchatslist = Object.assign([], chatslist[token])
+							let oldchatslist = Object.assign([], chatslist[token])
 							delete chatslist[token];
 							token = maketoken();
 							if (userfromtoken[token]) {
@@ -274,7 +382,7 @@ const requestListener = function (req, res) {
 							chatslist[token] = oldchatslist;
 							tokenfromuser[email] = token;
 							userfromtoken[token] = email;
-							var id = uidfromemail[email];
+							let id = uidfromemail[email];
 							res.statusCode = 200;
 							res.end(JSON.stringify({
 								token: tokenfromuser[email],
@@ -302,8 +410,8 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var email = getKeyByValue(uidfromemail,bd["uid"]);
+				let bd = JSON.parse(data);
+				let email = getKeyByValue(uidfromemail,bd["uid"]);
 				if (email) {
 					if (users[uidfromemail[email]]) {
 						res.statusCode = 200;
@@ -325,14 +433,14 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var gid = bd["groupid"];
+				let bd = JSON.parse(data);
+				let gid = bd["groupid"];
 				if (gid) {
 					if (groups[gid]) {
 						res.statusCode = 200;
-						var name = groups[gid].name;
-						var picture = groups[gid].picture;
-						var info = groups[gid].info;
+						let name = groups[gid].name;
+						let picture = groups[gid].picture;
+						let info = groups[gid].info;
 						res.end(JSON.stringify({
 							name:name,
 							picture:picture,
@@ -355,8 +463,8 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var gid = bd["groupid"];
+				let bd = JSON.parse(data);
+				let gid = bd["groupid"];
 				if (gid) {
 					if (groups[gid]) {
 						res.statusCode = 200;
@@ -378,10 +486,10 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
 						if (bd["name"] == undefined) {
 							res.statusCode = 411;
@@ -423,10 +531,10 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
 						let chatlista = Object.assign([], chatslist[token]);
 						if (chatlista == undefined) {
@@ -445,7 +553,7 @@ const requestListener = function (req, res) {
 										picture: groups[i.group].picture
 									};
 								}
-								var cht = chats[i.chatid];
+								let cht = chats[i.chatid];
 								if (cht == undefined || cht == null) {
 									try {
 										cht = JSON.parse(fs.readFileSync("data/chats/" + i.chatid + "/data.json"));
@@ -454,7 +562,7 @@ const requestListener = function (req, res) {
 										cht = {};
 									}
 								}
-								var kys = Object.keys(cht);
+								let kys = Object.keys(cht);
 								i.lastmessage = cht[kys[kys.length - 1]]
 							}catch (e) {console.log(e)}
 						})
@@ -477,21 +585,21 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var spl = bd["chatid"].split("-");
-						var isgroup = !bd["chatid"].includes("-");
+						let spl = bd["chatid"].split("-");
+						let isgroup = !bd["chatid"].includes("-");
 						if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : (groupusers[bd["chatid"]][uidfromemail[email]])) {
 							res.statusCode = 200;
-							//var chatpagei = [];
-							var chatitself = chats[bd["chatid"]];
+							//let chatpagei = [];
+							let chatitself = chats[bd["chatid"]];
 							if (chatitself == undefined || chatitself == null) {
 								chatitself = {};
 							}
-							var kys = Object.keys(chatitself);
+							let kys = Object.keys(chatitself);
 							res.end(JSON.stringify(chatitself[kys[kys.length - 1]]));
 						}else {
 							res.statusCode = 403;
@@ -515,23 +623,23 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var semail = bd["email"];
+						let semail = bd["email"];
 						if (semail) {
 							if (users[uidfromemail[semail]]) {
-								var chatlist = chatslist[token];
+								let chatlist = chatslist[token];
 								if (chatlist == undefined) {
 									chatlist = [];
 								}
-								var chatlistsec = chatslist[tokenfromuser[semail]];
+								let chatlistsec = chatslist[tokenfromuser[semail]];
 								if (chatlistsec == undefined) {
 									chatlistsec = [];
 								}
-								var ind = chatlist.findIndex(e => e.user === uidfromemail[semail])
+								let ind = chatlist.findIndex(e => e.user === uidfromemail[semail])
 								if (ind != -1) {
 									if (chatlistsec.some(e => e.user === uidfromemail[email])) {
 										
@@ -543,7 +651,7 @@ const requestListener = function (req, res) {
 										});
 									}
 								}else {
-									var indd = chatlistsec.findIndex(e => e.user === uidfromemail[email]);
+									let indd = chatlistsec.findIndex(e => e.user === uidfromemail[email]);
 									if (indd != -1) {
 										chatlist.push({
 											user: uidfromemail[email],
@@ -595,21 +703,21 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var spl = bd["chatid"].split("-");
-						var isgroup = !bd["chatid"].includes("-");
+						let spl = bd["chatid"].split("-");
+						let isgroup = !bd["chatid"].includes("-");
 						if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : (groupusers[bd["chatid"]][uidfromemail[email]])) {
 							res.statusCode = 200;
 							if (updaterinfo[token][bd["chatid"]] == undefined) {
 								updaterinfo[token][bd["chatid"]] == {}
 							}
-							//var chatpagei = [];
-							var chatitself = chats[bd["chatid"]];
-							var chatpage = 0;
+							//let chatpagei = [];
+							let chatitself = chats[bd["chatid"]];
+							let chatpage = 0;
 							try {
 								chatpage = parseInt(bd["page"]);
 								if (chatpage < 0) {
@@ -624,16 +732,16 @@ const requestListener = function (req, res) {
 									chatitself = {};
 								}
 							}
-							var kys = Object.keys(chatitself);
-							var start = kys.length + (chatpage - 1 * chatpagesize);
-							var end = kys.length + (chatpage * chatpagesize);
+							let kys = Object.keys(chatitself);
+							let start = kys.length + (chatpage - 1 * chatpagesize);
+							let end = kys.length + (chatpage * chatpagesize);
 							if (start < 0) {
 								start = 0;
 							}
 							const chunk = kys.slice(start, end);
-							var items = {};
+							let items = {};
 							chunk.forEach(i => {
-								var a = Object.assign({},chatitself[i]);
+								let a = Object.assign({},chatitself[i]);
 								a.senderuser = {
 									name: users[a.sender].name,
 									picture: users[a.sender].picture
@@ -674,18 +782,18 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var spl = bd["chatid"].split("-");
-						var isgroup = !bd["chatid"].includes("-");
+						let spl = bd["chatid"].split("-");
+						let isgroup = !bd["chatid"].includes("-");
 						if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : (groupusers[bd["chatid"]][uidfromemail[email]])) {
-							var chatitself = chats[bd["chatid"]];
+							let chatitself = chats[bd["chatid"]];
 							if (chatitself[bd["msgid"]]) {
-								var kys = Object.keys(chatitself);
-								var io = kys.length - kys.indexOf(bd["msgid"]);
+								let kys = Object.keys(chatitself);
+								let io = kys.length - kys.indexOf(bd["msgid"]);
 								res.statusCode = 200;
 								res.end(Math.floor(io / chatpagesize).toString());
 							}else {
@@ -714,16 +822,16 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			//try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var isgroup = !bd["chatid"].includes("-");
-						var spl = bd["chatid"].split("-");
+						let isgroup = !bd["chatid"].includes("-");
+						let spl = bd["chatid"].split("-");
 						if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : (groupusers[bd["chatid"]][uidfromemail[email]] && groups[bd["chatid"]].roles[groupusers[bd["chatid"]][uidfromemail[email]].role].AllowSending == true)) {
 							res.statusCode = 200;
-							var chatitself = chats[bd["chatid"]];
+							let chatitself = chats[bd["chatid"]];
 							if (chatitself == undefined || chatitself == null) {
 								try {
 									chatitself = JSON.parse(fs.readFileSync("data/chats/" + bd["chatid"] + "/data.json"));
@@ -737,7 +845,7 @@ const requestListener = function (req, res) {
 									res.statusCode = 411;
 									res.end(JSON.stringify({status: "error", description: "No Content", "id":"NOCONTENT"}));
 								}else {
-									var date = new Date();
+									let date = new Date();
 									let diff = -date.getTimezoneOffset();
 									let id = new Date().getTime().toString();
 									chatitself[id] = {
@@ -751,7 +859,7 @@ const requestListener = function (req, res) {
 									res.end(JSON.stringify({status: "done"}));
 									Object.values(updaterinfo).forEach((i) => {
 										if (i[bd["chatid"]]) {
-											var a = {
+											let a = {
 												event: "NEWMESSAGE",
 												content: bd["content"].toString().trim(),
 												sender: uidfromemail[email],
@@ -843,15 +951,15 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			//try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var isgroup = !bd["chatid"].includes("-");
-						var spl = bd["chatid"].split("-");
-						var msgid = bd["msgid"];
-						var chatitself = chats[bd["chatid"]];
+						let isgroup = !bd["chatid"].includes("-");
+						let spl = bd["chatid"].split("-");
+						let msgid = bd["msgid"];
+						let chatitself = chats[bd["chatid"]];
 						if (chatitself == undefined || chatitself == null) {
 							chatitself = {};
 						}
@@ -887,29 +995,29 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var msgid = bd["msgid"];
+						let msgid = bd["msgid"];
 						if (msgid == undefined) {
 							res.statusCode = 411;
 							res.end(JSON.stringify({status: "error", description: "No messageid", "id":"NOMSGID"}));
 							return;
 						}
-						var isgroup = !bd["chatid"].includes("-");
-						var spl = bd["chatid"].split("-");
+						let isgroup = !bd["chatid"].includes("-");
+						let spl = bd["chatid"].split("-");
 						//console.log(groupusers[bd["chatid"]][uidfromemail[email]]);
 						if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : groupusers[bd["chatid"]][uidfromemail[email]]) {
-							var chatitself = chats[bd["chatid"]];
+							let chatitself = chats[bd["chatid"]];
 							if (chatitself == undefined || chatitself == null) {
 								chatitself = {};
 							}
 							res.statusCode = 200;
 							if (chatitself[msgid]) {
-								var savedmessagesid = uidfromemail[email] + "-" + uidfromemail[email];
-								var chatsaveds = chats[savedmessagesid];
+								let savedmessagesid = uidfromemail[email] + "-" + uidfromemail[email];
+								let chatsaveds = chats[savedmessagesid];
 								if (chatsaveds == undefined || chatsaveds == null) {
 									try {
 										chatsaveds = JSON.parse(fs.readFileSync("data/chats/" + savedmessagesid + "/data.json"));
@@ -918,7 +1026,7 @@ const requestListener = function (req, res) {
 										chatsaveds = {};
 									}
 								}
-								var date = new Date();
+								let date = new Date();
 								let diff = -date.getTimezoneOffset();
 								chatsaveds[new Date().getTime().toString()] = {
 									content: chatitself[msgid]["content"].toString(),
@@ -954,22 +1062,22 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var msgid = bd["msgid"];
+						let msgid = bd["msgid"];
 						if (msgid == undefined) {
 							res.statusCode = 411;
 							res.end(JSON.stringify({status: "error", description: "No messageid", "id":"NOMSGID"}));
 							return;
 						}
-						var isgroup = !bd["chatid"].includes("-");
-						var spl = bd["chatid"].split("-");
+						let isgroup = !bd["chatid"].includes("-");
+						let spl = bd["chatid"].split("-");
 						//console.log(groupusers[bd["chatid"]][uidfromemail[email]]);
 						if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : groupusers[bd["chatid"]][uidfromemail[email]]) {
-							var chatitself = chats[bd["chatid"]];
+							let chatitself = chats[bd["chatid"]];
 							if (chatitself == undefined || chatitself == null) {
 								try {
 									chatitself = JSON.parse(fs.readFileSync("data/chats/" + bd["chatid"] + "/data.json"));
@@ -980,13 +1088,13 @@ const requestListener = function (req, res) {
 							}
 							res.statusCode = 200;
 							if (chatitself[msgid]) {
-								var tochatid = bd["tochatid"];
+								let tochatid = bd["tochatid"];
 								if (tochatid) {
-									var isgroup = !tochatid.includes("-");
-									var spl = tochatid.split("-");
+									let isgroup = !tochatid.includes("-");
+									let spl = tochatid.split("-");
 									//console.log(groupusers[tochatid][uidfromemail[email]]);
 									if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : groupusers[tochatid][uidfromemail[email]]) {
-										var ctst = chats[tochatid];
+										let ctst = chats[tochatid];
 										if (ctst == undefined || ctst == null) {
 											try {
 												ctst = JSON.parse(fs.readFileSync("data/chats/" + bd["chatid"] + "/data.json"));
@@ -995,7 +1103,7 @@ const requestListener = function (req, res) {
 												ctst = {};
 											}
 										}
-										var date = new Date();
+										let date = new Date();
 										let diff = -date.getTimezoneOffset();
 										ctst[new Date().getTime().toString()] = {
 											content: chatitself[msgid]["content"].toString(),
@@ -1080,14 +1188,14 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var groupname = bd["name"];
-						var grouppicture = bd["picture"];
-						var groupinfo = bd["info"];
+						let groupname = bd["name"];
+						let grouppicture = bd["picture"];
+						let groupinfo = bd["info"];
 						if (grouppicture == undefined) {
 							grouppicture = "";
 						}
@@ -1104,13 +1212,13 @@ const requestListener = function (req, res) {
 							res.end(JSON.stringify({status: "error", description: "No name", "id":"NONAME"}));
 							return;
 						}
-						var groupid = groupname.split(" ")[0] + new Date().getTime().toString();
+						let groupid = groupname.split(" ")[0] + new Date().getTime().toString();
 						if (groups[groupid]) {
 							res.statusCode = 500;
 							res.end(JSON.stringify({status: "error", description: "Group id already taken", "id":"GIDAT"}));
 							return;
 						}
-						var date = new Date();
+						let date = new Date();
 						let diff = -date.getTimezoneOffset();
 						groups[groupid] = {
 							name: groupname,
@@ -1172,14 +1280,14 @@ const requestListener = function (req, res) {
 							}
 						}
 						chats[groupid] = {};
-						var groupusersa = {}
+						let groupusersa = {}
 						groupusersa[uidfromemail[email]] = {
 							user: uidfromemail[email],
 							role: "Owner",
 							jointime: (date.getMonth() + 1).pad() + " " + date.getDate().pad() + " " + date.getFullYear() + ", " + date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0') + " " + ((diff<=0?"":"+") + Math.floor(diff / 60).pad().toString() + ":" + Math.floor(diff % 60).pad().toString())
 						}
 						groupusers[groupid] = groupusersa;
-						var chatlist = chatslist[token];
+						let chatlist = chatslist[token];
 						if (chatlist == undefined) {
 							chatlist = [];
 						}
@@ -1208,16 +1316,16 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var groupname = bd["name"];
-						var grouppicture = bd["picture"];
-						var groupinfo = bd["info"];
-						var groles = bd["roles"];
-						var groupid = bd["groupid"];
+						let groupname = bd["name"];
+						let grouppicture = bd["picture"];
+						let groupinfo = bd["info"];
+						let groles = bd["roles"];
+						let groupid = bd["groupid"];
 						if (grouppicture == undefined) {
 							grouppicture = "";
 						}
@@ -1267,14 +1375,14 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var groupid = bd["groupid"];
+						let groupid = bd["groupid"];
 						if (groups[groupid]) {
-							var chatlist = chatslist[token];
+							let chatlist = chatslist[token];
 							if (chatlist == undefined) {
 								chatlist = [];
 							}
@@ -1283,7 +1391,7 @@ const requestListener = function (req, res) {
 								res.end(JSON.stringify({groupid: groupid}));
 								return;
 							}
-							var date = new Date();
+							let date = new Date();
 							let diff = -date.getTimezoneOffset();
 							groupusersa = groupusers[groupid];
 							if (groupusersa[uidfromemail[email]]) {
@@ -1326,12 +1434,12 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var groupid = bd["groupid"];
+						let groupid = bd["groupid"];
 						if (groups[groupid]) {
 							res.statusCode = 200;
 							res.end(JSON.stringify(groupusers[groupid]));
@@ -1356,12 +1464,12 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			//try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var groupid = bd["groupid"];
+						let groupid = bd["groupid"];
 						if (groups[groupid]) {
 							res.statusCode = 200;
 							res.end(Object.keys(groupusers[groupid]).length.toString());
@@ -1386,24 +1494,24 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var groupid = bd["groupid"];
-						var userid = bd["userid"];
+						let groupid = bd["groupid"];
+						let userid = bd["userid"];
 						if (userid == undefined) {
 							res.statusCode = 411;
 							res.end(JSON.stringify({status: "error", description: "No UID", "id":"NOUID"}));
 						}
 						if (groups[groupid]) {
-							var gusers = groupusers[groupid];
+							let gusers = groupusers[groupid];
 							if (groups[groupid].roles[gusers[uidfromemail[email]].role].AllowEditingUsers == true) {
 								if (gusers[userid]) {
-									var role = bd["role"];
+									let role = bd["role"];
 									if (role) {
-										var roles = groups[groupid].roles;
+										let roles = groups[groupid].roles;
 										if (roles[role]) {
 											gusers[userid].role = role;
 											groupusers[groupid] = gusers;
@@ -1446,25 +1554,25 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
+					let email = userfromtoken[token];
 					if (users[uidfromemail[email]]) {
-						var groupid = bd["groupid"];
-						var userid = bd["userid"];
+						let groupid = bd["groupid"];
+						let userid = bd["userid"];
 						if (userid == undefined) {
 							res.statusCode = 411;
 							res.end(JSON.stringify({status: "error", description: "No UID", "id":"NOUID"}));
 						}
 						if (groups[groupid]) {
-							var gusers = groupusers[groupid];
+							let gusers = groupusers[groupid];
 							if (groups[groupid].roles[gusers[uidfromemail[email]].role].AllowKicking == true) {
 								if (gusers[userid]) {
 									delete gusers[userid];
 									groupusers[groupid] = gusers;
-									var chatlist = chatslist[tokenfromuser[getKeyByValue(uidfromemail,userid)]]
-									var ind = chatlist.findIndex(e => e.group === groupid)
+									let chatlist = chatslist[tokenfromuser[getKeyByValue(uidfromemail,userid)]]
+									let ind = chatlist.findIndex(e => e.group === groupid)
 									if (ind != -1) {
 										chatlist.splice(ind, 1);
 									}
@@ -1499,14 +1607,14 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (updaterinfo[token] == undefined) {
 					updaterinfo[token] = {};
 				};
 				if (token) {
-					var email = userfromtoken[token];
-					var uid = uidfromemail[email];
+					let email = userfromtoken[token];
+					let uid = uidfromemail[email];
 					if (users[uid]) {
 						useronlinestatus[uid] = "Online";
 						if (useronlinetimeouts[uid]) {
@@ -1515,7 +1623,7 @@ const requestListener = function (req, res) {
 							}catch {}
 						}
 						useronlinetimeouts[uid] = setTimeout(function() {
-							var date = new Date();
+							let date = new Date();
 							let diff = -date.getTimezoneOffset();
 							useronlinestatus[uid] = (date.getMonth() + 1).pad() + " " + date.getDate().pad() + " " + date.getFullYear() + ", " + date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0') + " " + ((diff<=0?"":"+") + Math.floor(diff / 60).pad().toString() + ":" + Math.floor(diff % 60).pad().toString());
 							updaterinfo[token] = {};
@@ -1539,13 +1647,13 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
-					var uid = uidfromemail[email];
+					let email = userfromtoken[token];
+					let uid = uidfromemail[email];
 					if (users[uid]) {
-						var date = new Date();
+						let date = new Date();
 						let diff = -date.getTimezoneOffset();
 						useronlinestatus[uid] = (date.getMonth() + 1).pad() + " " + date.getDate().pad() + " " + date.getFullYear() + ", " + date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0') + " " + ((diff<=0?"":"+") + Math.floor(diff / 60).pad().toString() + ":" + Math.floor(diff % 60).pad().toString());
 						if (useronlinetimeouts[uid]) {
@@ -1572,11 +1680,11 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
-					var uid = uidfromemail[email];
+					let email = userfromtoken[token];
+					let uid = uidfromemail[email];
 					if (users[uid]) {
 						if (notifications[token] == undefined) {
 							notifications[token] = {};
@@ -1608,13 +1716,13 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
-					var uid = uidfromemail[email];
+					let email = userfromtoken[token];
+					let uid = uidfromemail[email];
 					if (users[uid]) {
-						var tuid = bd["uid"];
+						let tuid = bd["uid"];
 						if (tuid) {
 							if (users[tuid]) {
 								res.statusCode = 200;
@@ -1644,29 +1752,29 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
-					var uid = uidfromemail[email];
+					let email = userfromtoken[token];
+					let uid = uidfromemail[email];
 					if (users[uid]) {
 						if (bd["chatid"]) {
-							var chat = chats[bd["chatid"]];
+							let chat = chats[bd["chatid"]];
 							if (bd["msgid"]) {
 								if (chat[bd["msgid"]]) {
-									var reaction = bd["reaction"];
+									let reaction = bd["reaction"];
 									if (reaction) {
-										var msg = chat[bd["msgid"]];
-										var isgroup = !bd["chatid"].includes("-");
-										var spl = bd["chatid"].split("-");
+										let msg = chat[bd["msgid"]];
+										let isgroup = !bd["chatid"].includes("-");
+										let spl = bd["chatid"].split("-");
 										if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : (groupusers[bd["chatid"]][uidfromemail[email]] && groups[bd["chatid"]].roles[groupusers[bd["chatid"]][uidfromemail[email]].role].AllowSendingReactions == true)) {
-											var date = new Date();
+											let date = new Date();
 											let diff = -date.getTimezoneOffset();
-											var reactions = msg["reactions"];
+											let reactions = msg["reactions"];
 											if (reactions == undefined) {
 												reactions = {};
 											}
-											var reactionsemoji = reactions[reaction];
+											let reactionsemoji = reactions[reaction];
 											if (reactionsemoji == undefined) {
 												reactionsemoji = {};
 											}
@@ -1750,21 +1858,21 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
-					var uid = uidfromemail[email];
+					let email = userfromtoken[token];
+					let uid = uidfromemail[email];
 					if (users[uid]) {
 						if (bd["chatid"]) {
-							var chat = chats[bd["chatid"]];
+							let chat = chats[bd["chatid"]];
 							if (bd["msgid"]) {
 								if (chat[bd["msgid"]]) {
-									var msg = chat[bd["msgid"]];
-									var isgroup = !bd["chatid"].includes("-");
-									var spl = bd["chatid"].split("-");
+									let msg = chat[bd["msgid"]];
+									let isgroup = !bd["chatid"].includes("-");
+									let spl = bd["chatid"].split("-");
 									if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : (groupusers[bd["chatid"]][uidfromemail[email]])) {
-										var reactions = msg["reactions"];
+										let reactions = msg["reactions"];
 										if (reactions == undefined) {
 											reactions = {};
 										}
@@ -1798,11 +1906,11 @@ const requestListener = function (req, res) {
 		});
 	}else if (req.url == "/upload" && req.method.toLowerCase() == "post") {
 		try {
-			var token =  req.headers["token"];
+			let token =  req.headers["token"];
 			console.log(token);
 			if (token) {
-				var email = userfromtoken[token];
-				var uid = uidfromemail[email];
+				let email = userfromtoken[token];
+				let uid = uidfromemail[email];
 				if (users[uid]) {
 					res.setHeader('Content-Type', 'application/json')
 
@@ -1860,10 +1968,10 @@ const requestListener = function (req, res) {
 	}else if (req.url.split("?")[0] == "/getmedia/") {
 		try {
 			//console.time("stat");
-			var query = url.parse(req.url,true).query;
+			let query = url.parse(req.url,true).query;
 			console.log(query.file,"new request");
 			if (query["file"]) {
-				var file = query["file"].replace(/\\/g,"");
+				let file = query["file"].replace(/\\/g,"");
 				fs.stat("./uploads/" + file,(err,stat) => {
 					if (err) {
 						res.writeHead(500);
@@ -1912,13 +2020,13 @@ const requestListener = function (req, res) {
 		})
 		req.on('end', () => {
 			//try {
-				var bd = JSON.parse(data);
-				var token = bd["token"];
+				let bd = JSON.parse(data);
+				let token = bd["token"];
 				if (token) {
-					var email = userfromtoken[token];
-					var uid = uidfromemail[email];
+					let email = userfromtoken[token];
+					let uid = uidfromemail[email];
 					if (users[uid]) {
-						var tuid = bd["id"];
+						let tuid = bd["id"];
 						if (tuid) {
 							if (updaterinfo[token]) {
 								if (updaterinfo[token][tuid]) {
@@ -1961,18 +2069,18 @@ const requestListener = function (req, res) {
 
 process.on('SIGHUP', function() {
 	console.log("Shutting down...")
-	var date = new Date();
+	let date = new Date();
 	let diff = -date.getTimezoneOffset();
-	var timestr = (date.getMonth() + 1).pad() + " " + date.getDate().pad() + " " + date.getFullYear() + ", " + date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0') + " " + ((diff<=0?"":"+") + Math.floor(diff / 60).pad().toString() + ":" + Math.floor(diff % 60).pad().toString());
+	let timestr = (date.getMonth() + 1).pad() + " " + date.getDate().pad() + " " + date.getFullYear() + ", " + date.getHours().toString().padStart(2, '0') + ":" + date.getMinutes().toString().padStart(2, '0') + " " + ((diff<=0?"":"+") + Math.floor(diff / 60).pad().toString() + ":" + Math.floor(diff % 60).pad().toString());
 	console.log("Ending offline timers...")
-	var tkeys = Object.keys(useronlinetimeouts);
+	let tkeys = Object.keys(useronlinetimeouts);
 	tkeys.forEach(i => {
 		try {
 			clearTimeout(useronlinetimeouts[i]);
 		}catch {}
 	});
 	console.log("Making users offline...")
-	var keys = Object.keys(useronlinestatus);
+	let keys = Object.keys(useronlinestatus);
 	keys.forEach(i => {
 		if (useronlinestatus[i] == "Online") {
 			useronlinestatus[i] = timestr;
