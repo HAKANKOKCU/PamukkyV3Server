@@ -18,6 +18,7 @@ let useronlinetimeouts = {};
 let useronlinestatus = {};
 let updaterinfo = {};
 let notifications = {};
+const r = ["AllowMessageDeleting","AllowEditingUsers","AllowEditingSettings","AllowKicking","AllowBanning","AllowSending","AllowSendingReactions"];
 const chatpagesize = 64;
 const args = process.argv;
 console.log(args);
@@ -462,13 +463,23 @@ const requestListener = function (req, res) {
 			data.push(chunk)
 		})
 		req.on('end', () => {
-			try {
+			//try {
 				let bd = JSON.parse(data);
 				let gid = bd["groupid"];
 				if (gid) {
 					if (groups[gid]) {
 						res.statusCode = 200;
-						res.end(JSON.stringify(groups[gid].roles));
+						let rs = groups[gid].roles;
+						Object.keys(rs).forEach((i) => {
+							let rp = rs[i];
+							r.forEach((i) => {
+								
+								if (rp[i] == undefined) {
+									rp[i] = false;
+								}
+							})
+						})
+						res.end(JSON.stringify(rs));
 					}else {
 						res.statusCode = 404;
 						res.end(JSON.stringify({status: "error", description: "No group", "id":"NOGROUP"}));
@@ -477,7 +488,7 @@ const requestListener = function (req, res) {
 					res.statusCode = 404;
 					res.end(JSON.stringify({status: "error", description: "No GID", "id":"NOGID"}));
 				}
-			}catch {}
+			//}catch {}
 		});
 	}else if (req.url == "/updateuser") {
 		let data = []
@@ -1493,7 +1504,7 @@ const requestListener = function (req, res) {
 			data.push(chunk)
 		})
 		req.on('end', () => {
-			try {
+			//try {
 				let bd = JSON.parse(data);
 				let token = bd["token"];
 				if (token) {
@@ -1545,7 +1556,7 @@ const requestListener = function (req, res) {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 				}
-			}catch {}
+			//}catch {}
 		});
 	}else if (req.url == "/kickuser") {
 		let data = []
