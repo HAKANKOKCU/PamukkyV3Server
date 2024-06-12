@@ -44,6 +44,7 @@ try {
 fs.mkdirSync("data");
 fs.mkdirSync("uploads");
 fs.mkdirSync("data/chats");
+fs.mkdirSync("data/users");
 }catch{}
 
 
@@ -94,7 +95,6 @@ function savedata(cb) {
 		useronlinestatus:useronlinestatus
 	}
 	console.log("Saving chats to files...");
-	console.log(chats)
 	Object.keys(chats).forEach(function(i) {
 		console.log(i);
 		try {fs.mkdirSync("data/chats/" + i);}catch{}
@@ -241,6 +241,12 @@ const requestListener = function (req, res) {
 		  //add other headers here...
 		});
 		res.end();
+	}else if (req.url == "/savedata") {
+		savedata(function() {
+			res.statusCode = 200;
+			res.end("saved");
+		});
+		
 	}else if (req.url == "/login") {
 		let data = []
 		req.on('data', (chunk) => {
@@ -338,7 +344,7 @@ const requestListener = function (req, res) {
 					uid:uidfromemail[bd["email"]],
 					userinfo:users[id]
 				}));
-			}catch {}
+			}catch (e) {console.error(e)}
 		});
 	}else if (req.url == "/changepassword") {
 		let data = []
