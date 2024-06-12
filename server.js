@@ -106,6 +106,9 @@ function savedata(cb) {
 
 function loaddata() {
 	try {
+		if (!fs.existsSync("./data.json")) {
+			fs.writeFileSync("./data.json", "{}")
+		}
 		let parsedjson = JSON.parse(fs.readFileSync("./data.json"));
 		users = nonundefined(parsedjson["users"], {});
 		userauths = nonundefined(parsedjson["userauths"], {});
@@ -768,6 +771,27 @@ const requestListener = function (req, res) {
 										a.forwardedname = users[a.forwardedfrom].name;
 									}catch (e) {console.error(e)}
 								}
+								if (a.files) {
+									a.gImages = [];
+									a.gFiles = [];
+									a.files.forEach(function(i) {
+										if (i.split(".")[1] == "png" || i.split(".")[1] == "jpg" || i.split(".")[1] == "jpeg" || i.split(".")[1] == "gif" || i.split(".")[1] == "bmp") {
+											a.gImages.push({url:i})
+										}else {
+											if (i.includes("%SERVER%getmedia/?file=")) {
+												let x = i.replace("%SERVER%getmedia/?file=","./uploads/")
+												try {
+													let inf = JSON.parse(fs.readFileSync(x + ".json"))
+													a.gFiles.push({url:i, name: inf.actualname, size: inf.size})
+												}catch {
+													a.gFiles.push({url:i, name: i})
+												}
+											}else {
+												a.gFiles.push({url:i, name: i})
+											}
+										}
+									});
+								}
 								items[i] = a;
 							})
 							res.end(JSON.stringify(items));
@@ -784,7 +808,7 @@ const requestListener = function (req, res) {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 				}
-			}catch {}
+			}catch (e) {console.error(e)}
 		});
 	}else if (req.url == "/getmsgpage") {
 		let data = []
@@ -889,6 +913,29 @@ const requestListener = function (req, res) {
 													a.replymsgsender = users[chatitself[a.replymsgid].sender].name
 												}catch (e) {console.error(e)}
 											}
+											
+											if (a.files) {
+												a.gImages = [];
+												a.gFiles = [];
+												a.files.forEach(function(i) {
+													if (i.split(".")[1] == "png" || i.split(".")[1] == "jpg" || i.split(".")[1] == "jpeg" || i.split(".")[1] == "gif" || i.split(".")[1] == "bmp") {
+														a.gImages.push({url:i})
+													}else {
+														if (i.includes("%SERVER%getmedia/?file=")) {
+															let x = i.replace("%SERVER%getmedia/?file=","./uploads/")
+															try {
+																let inf = JSON.parse(fs.readFileSync(x + ".json"))
+																a.gFiles.push({url:i, name: inf.actualname, size: inf.size})
+															}catch {
+																a.gFiles.push({url:i, name: i})
+															}
+														}else {
+															a.gFiles.push({url:i, name: i})
+														}
+													}
+												});
+											}
+											
 											i[bd["chatid"]][id] = a;
 											
 											
@@ -1932,7 +1979,6 @@ const requestListener = function (req, res) {
 					  res.end(JSON.stringify({status: "error", description: "No File"}))
 					  return
 					}
-					// Try to use the original filename
 					let id = makeid(20);
 					if (req.headers['content-type'] == undefined) {
 						req.headers['content-type'] = "UNKNOWN/file"
@@ -1943,6 +1989,9 @@ const requestListener = function (req, res) {
 						filename = id + "." + req.headers['content-type'].split('/')[1];
 						filename = filename.replace(/\\/g,"");
 						console.log(filename,fs.existsSync(`./uploads/${filename}`))
+					}
+					if (req.headers['filename'] == undefined) {
+						req.headers['filename'] = filename;
 					}
 					const fil = '%SERVER%getmedia/?file=' + filename;
 					console.log(fil);
@@ -1963,7 +2012,14 @@ const requestListener = function (req, res) {
 						console.log(fil);
 						filestream.close(() => {
 							console.log(fil);
-							res.end(JSON.stringify({status: "success",url: fil}))
+							fs.writeFile(`./uploads/${filename}.json`, JSON.stringify({
+								sender: token,
+								size: req.headers['content-length'],
+								actualname: decodeURI(req.headers['filename'])
+							}), function() {
+								res.end(JSON.stringify({status: "success",url: fil}))
+							})
+							
 						})
 					})
 				}else {
@@ -1992,8 +2048,15 @@ const requestListener = function (req, res) {
 					}
 					//console.time("read");
 					//console.timeEnd("stat");
+					let inf;
+					try {
+						inf = JSON.parse(fs.readFileSync("./uploads/" + file + ".json"))
+					}catch {
+						inf = {actualname: file};
+					}
 					res.writeHead(200, {
-						'Content-Length': stat.size
+						'Content-Length': stat.size,
+						'Content-Disposition': `attachment; filename=${inf.actualname}`,
 					});
 					delete stat;
 					try {
