@@ -881,8 +881,10 @@ const requestListener = function (req, res) {
 									chatitself = {};
 								}
 							}
-							if (bd["content"]) {
-								if (bd["content"].toString().trim().length == 0 && ((bd["files"] != null) ? bd["files"] : undefined) == undefined) {
+							if (bd.files == null || bd.files == undefined) bd.files = [];
+							if (bd["content"] || bd.files.length > 0) {
+								
+								if (bd["content"].toString().trim().length == 0 && bd.files.length < 1) {
 									res.statusCode = 411;
 									res.end(JSON.stringify({status: "error", description: "No Content", "id":"NOCONTENT"}));
 								}else {
@@ -991,7 +993,7 @@ const requestListener = function (req, res) {
 								}
 							}else {
 								res.statusCode = 411;
-								res.end(JSON.stringify({status: "error", description: "No Content", "id":"NOCONTENT"}));
+								res.end(JSON.stringify({status: "error", description: "Content is 0", "id":"NOCONTENT"}));
 							}
 						}else {
 							res.statusCode = 403;
