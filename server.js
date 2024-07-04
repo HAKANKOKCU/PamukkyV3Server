@@ -44,7 +44,6 @@ try {
 fs.mkdirSync("data");
 fs.mkdirSync("uploads");
 fs.mkdirSync("data/chats");
-fs.mkdirSync("data/users");
 }catch{}
 
 
@@ -95,6 +94,7 @@ function savedata(cb) {
 		useronlinestatus:useronlinestatus
 	}
 	console.log("Saving chats to files...");
+	console.log(chats)
 	Object.keys(chats).forEach(function(i) {
 		console.log(i);
 		try {fs.mkdirSync("data/chats/" + i);}catch{}
@@ -106,9 +106,6 @@ function savedata(cb) {
 
 function loaddata() {
 	try {
-		if (!fs.existsSync("./data.json")) {
-			fs.writeFileSync("./data.json", "{}")
-		}
 		let parsedjson = JSON.parse(fs.readFileSync("./data.json"));
 		users = nonundefined(parsedjson["users"], {});
 		userauths = nonundefined(parsedjson["userauths"], {});
@@ -222,7 +219,7 @@ function loaddata() {
 }
 
 loaddata();
-const requestListener = function (req, res) {
+const requestListener = async (req, res) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
 
     // Request methods you wish to allow
@@ -241,12 +238,6 @@ const requestListener = function (req, res) {
 		  //add other headers here...
 		});
 		res.end();
-	}else if (req.url == "/savedata") {
-		savedata(function() {
-			res.statusCode = 200;
-			res.end("saved");
-		});
-		
 	}else if (req.url == "/login") {
 		let data = []
 		req.on('data', (chunk) => {
@@ -344,7 +335,7 @@ const requestListener = function (req, res) {
 					uid:uidfromemail[bd["email"]],
 					userinfo:users[id]
 				}));
-			}catch (e) {console.error(e)}
+			}catch {}
 		});
 	}else if (req.url == "/changepassword") {
 		let data = []
@@ -788,7 +779,7 @@ const requestListener = function (req, res) {
 												let x = i.replace("%SERVER%getmedia/?file=","./uploads/")
 												try {
 													let inf = JSON.parse(fs.readFileSync(x + ".json"))
-													a.gFiles.push({url:i, name: inf.actualname, size: inf.size})
+													a.gFiles.push({url:i, name: inf.actualname})
 												}catch {
 													a.gFiles.push({url:i, name: i})
 												}
@@ -881,10 +872,8 @@ const requestListener = function (req, res) {
 									chatitself = {};
 								}
 							}
-							if (bd.files == null || bd.files == undefined) bd.files = [];
-							if (bd["content"] || bd.files.length > 0) {
-								
-								if (bd["content"].toString().trim().length == 0 && bd.files.length < 1) {
+							if (bd["content"]) {
+								if (bd["content"].toString().trim().length == 0 && ((bd["files"] != null) ? bd["files"] : undefined) == undefined) {
 									res.statusCode = 411;
 									res.end(JSON.stringify({status: "error", description: "No Content", "id":"NOCONTENT"}));
 								}else {
@@ -933,7 +922,7 @@ const requestListener = function (req, res) {
 															let x = i.replace("%SERVER%getmedia/?file=","./uploads/")
 															try {
 																let inf = JSON.parse(fs.readFileSync(x + ".json"))
-																a.gFiles.push({url:i, name: inf.actualname, size: inf.size})
+																a.gFiles.push({url:i, name: inf.actualname})
 															}catch {
 																a.gFiles.push({url:i, name: i})
 															}
@@ -993,7 +982,7 @@ const requestListener = function (req, res) {
 								}
 							}else {
 								res.statusCode = 411;
-								res.end(JSON.stringify({status: "error", description: "Content is 0", "id":"NOCONTENT"}));
+								res.end(JSON.stringify({status: "error", description: "No Content", "id":"NOCONTENT"}));
 							}
 						}else {
 							res.statusCode = 403;
@@ -1846,8 +1835,13 @@ const requestListener = function (req, res) {
 											}
 											if (reactionsemoji[uid]) {
 												delete reactionsemoji[uid];
+												//console.log(Object.keys(reactionsemoji).length);
 												if (Object.keys(reactionsemoji).length == 0) {
-													delete reactionsemoji;
+													reactions[reaction] = undefined;
+													
+													delete reactions[reaction];
+													reactionsemoji = undefined;
+													//console.log(reactionsemoji)
 												}
 												Object.values(updaterinfo).forEach((i) => {
 													//if (i[bd[chatid]]) {
@@ -1987,10 +1981,12 @@ const requestListener = function (req, res) {
 					  res.end(JSON.stringify({status: "error", description: "No File"}))
 					  return
 					}
+					// Try to use the original filename
 					let id = makeid(20);
 					if (req.headers['content-type'] == undefined) {
 						req.headers['content-type'] = "UNKNOWN/file"
 					}
+					
 					let filename = id + "." + req.headers['content-type'].split('/')[1];
 					while (fs.existsSync(`./uploads/${filename}`)) {
 						let id = makeid(20);
@@ -2022,7 +2018,6 @@ const requestListener = function (req, res) {
 							console.log(fil);
 							fs.writeFile(`./uploads/${filename}.json`, JSON.stringify({
 								sender: token,
-								size: req.headers['content-length'],
 								actualname: decodeURI(req.headers['filename'])
 							}), function() {
 								res.end(JSON.stringify({status: "success",url: fil}))
