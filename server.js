@@ -653,7 +653,10 @@ const requestListener = async (req, res) => {
 								let ind = chatlist.findIndex(e => e.user === uidfromemail[semail])
 								if (ind != -1) {
 									if (chatlistsec.some(e => e.user === uidfromemail[email])) {
-										
+										console.log("both users already has chat item");
+										res.statusCode = 411;
+										res.end(JSON.stringify({status: "done", description: "Both users already has the chat.", "id":"ALREADYHAS"}));
+										return;
 									}else {
 										chatlistsec.push({
 											user: uidfromemail[email],
@@ -684,7 +687,14 @@ const requestListener = async (req, res) => {
 										}
 									}
 								}
-								chats[uidfromemail[email] + "-" + uidfromemail[semail]] = {};
+								if (chats[uidfromemail[email] + "-" + uidfromemail[semail]] == undefined) {
+									try {
+										chats[uidfromemail[email] + "-" + uidfromemail[semail]] = JSON.parse(fs.readFileSync("data/chats/" + bd["chatid"] + "/data.json"));
+									}catch {
+										chats[uidfromemail[email] + "-" + uidfromemail[semail]] = {};
+									}
+								}
+								
 								chatslist[token] = chatlist;
 								chatslist[tokenfromuser[semail]] = chatlistsec;
 								res.statusCode = 200;
@@ -1843,7 +1853,7 @@ const requestListener = async (req, res) => {
 													reactionsemoji = undefined;
 													//console.log(reactionsemoji)
 												}
-												Object.values(updaterinfo).forEach((i) => {
+												//Object.values(updaterinfo).forEach((i) => {
 													//if (i[bd[chatid]]) {
 													//	i[bd[chatid]][msg] = {
 													//		event:"REMREACT",
@@ -1851,7 +1861,7 @@ const requestListener = async (req, res) => {
 													//		msg:msg
 													//	}
 													//}
-												})
+												//})
 											}else {
 												reactionsemoji[uid] = {
 													reaction: reaction,
@@ -1909,7 +1919,7 @@ const requestListener = async (req, res) => {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 				}
-			}catch {}
+			}catch (e) {console.error(e)}
 		});
 	}else if (req.url == "/getreactions") {
 		let data = []
