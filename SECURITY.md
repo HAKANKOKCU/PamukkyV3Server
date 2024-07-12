@@ -11,4 +11,4 @@ Only lastest version will be supported.
 
 ## Reporting a Vulnerability
 
-If you found a vulnerability, you can report them by creating a new issue about it.
+If you found a vulnerability, you can report them by creating a new issue about it. But check if it was reported before or not.
