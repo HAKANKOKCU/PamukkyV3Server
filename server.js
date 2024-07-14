@@ -106,6 +106,9 @@ function savedata(cb) {
 
 function loaddata() {
 	try {
+		if (!fs.existsSync("./data.json")) {
+			fs.writeFileSync("./data.json", "{}")
+		}
 		let parsedjson = JSON.parse(fs.readFileSync("./data.json"));
 		users = nonundefined(parsedjson["users"], {});
 		userauths = nonundefined(parsedjson["userauths"], {});
@@ -238,6 +241,11 @@ const requestListener = async (req, res) => {
 		  //add other headers here...
 		});
 		res.end();
+	}else if (req.url == "/savedata") {
+		savedata(function() {
+			res.statusCode = 200;
+			res.end("saved");
+		});
 	}else if (req.url == "/login") {
 		let data = []
 		req.on('data', (chunk) => {
@@ -793,7 +801,7 @@ const requestListener = async (req, res) => {
 												let x = i.replace("%SERVER%getmedia/?file=","./uploads/")
 												try {
 													let inf = JSON.parse(fs.readFileSync(x + ".json"))
-													a.gFiles.push({url:i, name: inf.actualname})
+													a.gFiles.push({url:i, name: inf.actualname, size: inf.size})
 												}catch {
 													a.gFiles.push({url:i, name: i})
 												}
@@ -886,8 +894,9 @@ const requestListener = async (req, res) => {
 									chatitself = {};
 								}
 							}
-							if (bd["content"]) {
-								if (bd["content"].toString().trim().length == 0 && ((bd["files"] != null) ? bd["files"] : undefined) == undefined) {
+							if (bd.files == null || bd.files == undefined) bd.files = [];
+							if (bd["content"] || bd.files.length > 0) {
+								if (bd["content"].toString().trim().length == 0 && bd.files.length < 1) {
 									res.statusCode = 411;
 									res.end(JSON.stringify({status: "error", description: "No Content", "id":"NOCONTENT"}));
 								}else {
@@ -940,7 +949,7 @@ const requestListener = async (req, res) => {
 															let x = i.replace("%SERVER%getmedia/?file=","./uploads/")
 															try {
 																let inf = JSON.parse(fs.readFileSync(x + ".json"))
-																a.gFiles.push({url:i, name: inf.actualname})
+																a.gFiles.push({url:i, name: inf.actualname, size: inf.size})
 															}catch {
 																a.gFiles.push({url:i, name: i})
 															}
@@ -2036,6 +2045,7 @@ const requestListener = async (req, res) => {
 							console.log(fil);
 							fs.writeFile(`./uploads/${filename}.json`, JSON.stringify({
 								sender: token,
+								size: req.headers['content-length'],
 								actualname: decodeURI(req.headers['filename'])
 							}), function() {
 								res.end(JSON.stringify({status: "success",url: fil}))
