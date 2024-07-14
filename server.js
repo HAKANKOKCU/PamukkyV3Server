@@ -780,10 +780,14 @@ const requestListener = async (req, res) => {
 								}
 								if (a.files) {
 									a.gImages = [];
+									a.gVideos = [];
 									a.gFiles = [];
 									a.files.forEach(function(i) {
-										if (i.split(".")[1] == "png" || i.split(".")[1] == "jpg" || i.split(".")[1] == "jpeg" || i.split(".")[1] == "gif" || i.split(".")[1] == "bmp") {
+										let extension = i.split(".")[1];
+										if (extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "gif" || extension == "bmp") {
 											a.gImages.push({url:i})
+										}else if (extension == "mp4") {
+											a.gVideos.push({url:i});
 										}else {
 											if (i.includes("%SERVER%getmedia/?file=")) {
 												let x = i.replace("%SERVER%getmedia/?file=","./uploads/")
@@ -924,9 +928,13 @@ const requestListener = async (req, res) => {
 											if (a.files) {
 												a.gImages = [];
 												a.gFiles = [];
+												a.gVideos = [];
 												a.files.forEach(function(i) {
-													if (i.split(".")[1] == "png" || i.split(".")[1] == "jpg" || i.split(".")[1] == "jpeg" || i.split(".")[1] == "gif" || i.split(".")[1] == "bmp") {
+													let extension = i.split(".")[1];
+													if (extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "gif" || extension == "bmp") {
 														a.gImages.push({url:i})
+													}else if (extension == "mp4") {
+														a.gVideos.push({url:i});
 													}else {
 														if (i.includes("%SERVER%getmedia/?file=")) {
 															let x = i.replace("%SERVER%getmedia/?file=","./uploads/")
@@ -2052,44 +2060,84 @@ const requestListener = async (req, res) => {
 			console.log(query.file,"new request");
 			if (query["file"]) {
 				let file = query["file"].replace(/\\/g,"");
-				fs.stat("./uploads/" + file,(err,stat) => {
-					if (err) {
-						res.writeHead(500);
-						res.end();
-						console.error(err);
-						return;
-					}
-					//console.time("read");
-					//console.timeEnd("stat");
-					let inf;
+				if (file.endsWith(".mp4")) {
+					let filePath = "./uploads/" + query["file"].replace(/\\/g,"");
 					try {
 						inf = JSON.parse(fs.readFileSync("./uploads/" + file + ".json"))
 					}catch {
 						inf = {actualname: file};
 					}
-					res.writeHead(200, {
-						'Content-Length': stat.size,
-						'Content-Disposition': `attachment; filename=${inf.actualname}`,
-					});
-					delete stat;
-					try {
-						const readStream = fs.createReadStream("./uploads/" + file);
-
-						readStream.on('data', function(chunk) {
-							res.write(chunk);
-						});
-
-						readStream.on('end', function() {
-							//console.timeEnd("read");
-							res.end();
-							delete readStream;
-						});
-					}catch (e) {
-						res.writeHead(500);
-						res.end();
-						console.error(e);
+					let range = req.headers.range
+					if (!range) {
+						range = "0";
 					}
-				})
+				 
+					// get video stats (about 100MB)
+					let fileSize = fs.statSync(filePath).size
+				 
+					// Parse Range
+					// Example: "bytes=32324-"
+					let CHUNK_SIZE = 10 ** 6 // 1MB
+					let start = Number(range.replace(/\D/g, ""))
+					let end = Math.min(start + CHUNK_SIZE, fileSize - 1)
+				 
+				  // Create headers
+					let contentLength = end - start + 1
+					let headers = {
+						"Content-Range": `bytes ${start}-${end}/${fileSize}`,
+						"Accept-Ranges": "bytes",
+						"Content-Length": contentLength,
+						"Content-Type":"video/mp4"
+					}
+				 
+					// HTTP Status 206 for Partial Content
+					res.writeHead(206, headers)
+				 
+					// create video read stream for this particular chunk
+					let fileStream = fs.createReadStream(filePath, { start, end })
+				 
+					// Stream the video chunk to the client
+					fileStream.pipe(res)
+				}else {
+					fs.stat("./uploads/" + file,(err,stat) => {
+						if (err) {
+							res.writeHead(500);
+							res.end();
+							console.error(err);
+							return;
+						}
+						//console.time("read");
+						//console.timeEnd("stat");
+						let inf;
+						try {
+							inf = JSON.parse(fs.readFileSync("./uploads/" + file + ".json"))
+						}catch {
+							inf = {actualname: file};
+						}
+						res.writeHead(200, {
+							'Content-Length': stat.size,
+							'Content-Disposition': `attachment; filename=${inf.actualname}`,
+						});
+						delete stat;
+						try {
+							const readStream = fs.createReadStream("./uploads/" + file);
+
+							readStream.on('data', function(chunk) {
+								res.write(chunk);
+							});
+
+							readStream.on('end', function() {
+								//console.timeEnd("read");
+								res.end();
+								delete readStream;
+							});
+						}catch (e) {
+							res.writeHead(500);
+							res.end();
+							console.error(e);
+						}
+					})
+				}
 			}else {
 				res.statusCode = 441;
 				res.write("No file provided.")
