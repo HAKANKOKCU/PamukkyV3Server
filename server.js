@@ -1175,7 +1175,7 @@ const requestListener = async (req, res) => {
 									let isgroup = !tochatid.includes("-");
 									let spl = tochatid.split("-");
 									//console.log(groupusers[tochatid][uidfromemail[email]]);
-									if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : groupusers[tochatid][uidfromemail[email]]) {
+									if (!isgroup ? (spl[0] == uidfromemail[email] || spl[1] == uidfromemail[email]) : (groupusers[bd["chatid"]][uidfromemail[email]] && groups[bd["chatid"]].roles[groupusers[bd["chatid"]][uidfromemail[email]].role].AllowSending == true)) {
 										let ctst = chats[tochatid];
 										if (ctst == undefined || ctst == null) {
 											try {
