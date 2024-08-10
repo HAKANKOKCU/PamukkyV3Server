@@ -2071,10 +2071,10 @@ const requestListener = async (req, res) => {
 		try {
 			//console.time("stat");
 			let query = url.parse(req.url,true).query;
-			console.log(query.file,"new request");
+			//console.log(query.file,req.headers,"new request");
 			if (query["file"]) {
 				let file = query["file"].replace(/\\/g,"");
-				if (file.endsWith(".mp4")) {
+				if (req.headers["sec-fetch-dest"] == "video") {
 					let filePath = "./uploads/" + query["file"].replace(/\\/g,"");
 					try {
 						inf = JSON.parse(fs.readFileSync("./uploads/" + file + ".json"))
@@ -2128,10 +2128,16 @@ const requestListener = async (req, res) => {
 						}catch {
 							inf = {actualname: file};
 						}
-						res.writeHead(200, {
-							'Content-Length': stat.size,
-							'Content-Disposition': `attachment; filename=${inf.actualname}`,
-						});
+						if (req.headers["sec-fetch-dest"] == "document") {
+							res.writeHead(200, {
+								'Content-Length': stat.size,
+							});
+						}else {
+							res.writeHead(200, {
+								'Content-Length': stat.size,
+								'Content-Disposition': `attachment; filename=${encodeURIComponent(inf.actualname)}`,
+							});
+						}
 						delete stat;
 						try {
 							const readStream = fs.createReadStream("./uploads/" + file);
