@@ -351,7 +351,7 @@ const requestListener = async (req, res) => {
 			data.push(chunk)
 		})
 		req.on('end', () => {
-			//try {
+			try {
 				let bd = JSON.parse(data);
 				let token = bd["token"];
 				if (token) {
@@ -410,7 +410,7 @@ const requestListener = async (req, res) => {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 				}
-			//}catch {}
+			}catch {}
 		});
 	}else if (req.url == "/getuser") {
 		let data = []
@@ -471,7 +471,7 @@ const requestListener = async (req, res) => {
 			data.push(chunk)
 		})
 		req.on('end', () => {
-			//try {
+			try {
 				let bd = JSON.parse(data);
 				let gid = bd["groupid"];
 				if (gid) {
@@ -496,7 +496,7 @@ const requestListener = async (req, res) => {
 					res.statusCode = 404;
 					res.end(JSON.stringify({status: "error", description: "No GID", "id":"NOGID"}));
 				}
-			//}catch {}
+			}catch {}
 		});
 	}else if (req.url == "/updateuser") {
 		let data = []
@@ -559,6 +559,7 @@ const requestListener = async (req, res) => {
 						if (chatlista == undefined) {
 							chatlista = [];
 						}
+						
 						chatlista.forEach(i => {
 							try {
 								if (i.type == "user") {
@@ -585,6 +586,9 @@ const requestListener = async (req, res) => {
 								i.lastmessage = cht[kys[kys.length - 1]]
 							}catch (e) {console.log(e)}
 						})
+						chatlista.sort(function(x, y){
+							return -(new Date(x.lastmessage.time) - new Date(y.lastmessage.time));
+						})
 						res.statusCode = 200;
 						res.end(JSON.stringify(chatlista));
 					}else {
@@ -595,7 +599,7 @@ const requestListener = async (req, res) => {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 				}
-			}catch {}
+			}catch (e) {console.error(e)}
 		});
 	}else if (req.url == "/getlastmessage") {
 		let data = []
@@ -875,7 +879,7 @@ const requestListener = async (req, res) => {
 			data.push(chunk)
 		})
 		req.on('end', () => {
-			//try {
+			try {
 				let bd = JSON.parse(data);
 				let token = bd["token"];
 				if (token) {
@@ -1024,7 +1028,7 @@ const requestListener = async (req, res) => {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 				}
-			//}catch {}
+			}catch {}
 		});
 	}else if (req.url == "/deletemessage") {
 		let data = []
@@ -1032,7 +1036,7 @@ const requestListener = async (req, res) => {
 			data.push(chunk)
 		})
 		req.on('end', () => {
-			//try {
+			try {
 				let bd = JSON.parse(data);
 				let token = bd["token"];
 				if (token) {
@@ -1068,7 +1072,7 @@ const requestListener = async (req, res) => {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 				}
-			//}catch {}
+			}catch {}
 		});
 	}else if (req.url == "/savemessage") {
 		let data = []
@@ -1545,7 +1549,7 @@ const requestListener = async (req, res) => {
 			data.push(chunk)
 		})
 		req.on('end', () => {
-			//try {
+			try {
 				let bd = JSON.parse(data);
 				let token = bd["token"];
 				if (token) {
@@ -1567,7 +1571,7 @@ const requestListener = async (req, res) => {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 				}
-			//}catch {}
+			}catch {}
 		});
 	}else if (req.url == "/edituser") {
 		let data = []
@@ -1575,7 +1579,7 @@ const requestListener = async (req, res) => {
 			data.push(chunk)
 		})
 		req.on('end', () => {
-			//try {
+			try {
 				let bd = JSON.parse(data);
 				let token = bd["token"];
 				if (token) {
@@ -1627,7 +1631,7 @@ const requestListener = async (req, res) => {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 				}
-			//}catch {}
+			}catch {}
 		});
 	}else if (req.url == "/kickuser") {
 		let data = []
@@ -2164,8 +2168,9 @@ const requestListener = async (req, res) => {
 			data.push(chunk)
 		})
 		req.on('end', () => {
-			//try {
+			try {
 				let bd = JSON.parse(data);
+				
 				let token = bd["token"];
 				if (token) {
 					let email = userfromtoken[token];
@@ -2203,7 +2208,7 @@ const requestListener = async (req, res) => {
 					res.statusCode = 411;
 					res.end(JSON.stringify({status: "error", description: "No token", "id":"NOTOKEN"}));
 				}
-			//}catch {}
+			}catch {}
 		});
 	}else {
 		res.statusCode = 200;
