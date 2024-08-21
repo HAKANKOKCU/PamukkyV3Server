@@ -1434,12 +1434,17 @@ const requestListener = async (req, res) => {
 						}
 						
 						if (groups[groupid]) {
-							groups[groupid].name = groupname;
-							groups[groupid].picture = grouppicture;
-							groups[groupid].info = groupinfo;
-							groups[groupid].roles = groles;
-							res.statusCode = 200;
-							res.end(JSON.stringify({groupid: groupid}));
+							if (groupusers[groupid][uidfromemail[email]] && groups[groupid].roles[groupusers[groupid][uidfromemail[email]].role].AllowEditingSettings == true) {
+								groups[groupid].name = groupname;
+								groups[groupid].picture = grouppicture;
+								groups[groupid].info = groupinfo;
+								groups[groupid].roles = groles;
+								res.statusCode = 200;
+								res.end(JSON.stringify({groupid: groupid}));
+							}else {
+								res.statusCode = 403;
+								res.end(JSON.stringify({status: "error", description: "Denied.", "id":"DENIED"}));
+							}
 						}else {
 							res.statusCode = 404;
 							res.end(JSON.stringify({status: "error", description: "No group", "id":"NOGROUP"}));
