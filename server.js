@@ -586,9 +586,18 @@ const requestListener = async (req, res) => {
 								i.lastmessage = cht[kys[kys.length - 1]]
 							}catch (e) {console.log(e)}
 						})
+						function s(x,y) {
+							try {
+								return new Date(x.lastmessage.time) - new Date(y.lastmessage.time)
+							}catch {
+								return 0;
+							}
+						}
+						
 						chatlista.sort(function(x, y){
-							return -(new Date(x.lastmessage.time) - new Date(y.lastmessage.time));
+							return -(s(x,y));
 						})
+						
 						res.statusCode = 200;
 						res.end(JSON.stringify(chatlista));
 					}else {
@@ -2017,6 +2026,7 @@ const requestListener = async (req, res) => {
 					  res.end(JSON.stringify({status: "error", description: "No File"}))
 					  return
 					}
+					console.log(req.headers);
 					// Try to use the original filename
 					let id = makeid(20);
 					if (req.headers['content-type'] == undefined) {
@@ -2053,7 +2063,7 @@ const requestListener = async (req, res) => {
 						filestream.close(() => {
 							console.log(fil);
 							fs.writeFile(`./uploads/${filename}.json`, JSON.stringify({
-								sender: token,
+								sender: uidfromemail[userfromtoken[token]],
 								size: req.headers['content-length'],
 								actualname: decodeURI(req.headers['filename'])
 							}), function() {
