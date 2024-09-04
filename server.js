@@ -103,6 +103,8 @@ function savedata(cb) {
 	fs.writeFile("./data.json",JSON.stringify(savejson),cb);
 }
 
+setInterval(function () {savedata(function() {})}, 360000); //save data every 6 mins.
+
 
 function loaddata() {
 	try {
@@ -573,17 +575,19 @@ const requestListener = async (req, res) => {
 										picture: groups[i.group].picture
 									};
 								}
-								let cht = chats[i.chatid];
-								if (cht == undefined || cht == null) {
-									try {
-										cht = JSON.parse(fs.readFileSync("data/chats/" + i.chatid + "/data.json"));
-										chats[i.chatid] = cht;
-									}catch {
-										cht = {};
+								try {
+									let cht = chats[i.chatid];
+									if (cht == undefined || cht == null) {
+										try {
+											cht = JSON.parse(fs.readFileSync("data/chats/" + i.chatid + "/data.json"));
+											chats[i.chatid] = cht;
+										}catch {
+											cht = {};
+										}
 									}
-								}
-								let kys = Object.keys(cht);
-								i.lastmessage = cht[kys[kys.length - 1]]
+									let kys = Object.keys(cht);
+									i.lastmessage = cht[kys[kys.length - 1]]
+								}catch {}
 							}catch (e) {console.log(e)}
 						})
 						function s(x,y) {
