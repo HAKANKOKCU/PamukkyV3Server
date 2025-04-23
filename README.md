@@ -1,3 +1,6 @@
+> [!IMPORTANT]  
+> Has been rewritten in C#: https://github.com/HAKANKOKCU/PamukkyV3ServerCS
+
 # Pamukky V3 Server
 https://pamukky.netlify.app/v3
 # Setup
